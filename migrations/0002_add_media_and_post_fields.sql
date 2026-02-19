@@ -1,0 +1,17 @@
+-- posts テーブルに作者・リンク・タグ情報を追加
+ALTER TABLE posts ADD COLUMN author_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE posts ADD COLUMN author_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE posts ADD COLUMN github_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE posts ADD COLUMN demo_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE posts ADD COLUMN tags TEXT NOT NULL DEFAULT '';
+
+-- メディアテーブル (R2オブジェクトへの参照)
+CREATE TABLE IF NOT EXISTS media (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+  r2_key TEXT NOT NULL,
+  filename TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
