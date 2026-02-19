@@ -1,4 +1,5 @@
 import { createRoute } from "honox/factory";
+import { isVideo } from "../../lib/media";
 
 type Post = {
   id: number;
@@ -61,14 +62,26 @@ export default createRoute(async (c) => {
         )}
         {media.results.length > 0 && (
           <div class="space-y-3 mb-6">
-            {media.results.map((m) => (
-              <img
-                key={m.id}
-                src={`/media/${m.id}`}
-                alt={m.filename}
-                class="w-full rounded-xl"
-              />
-            ))}
+            {media.results.map((m) =>
+              isVideo(m.mime_type) ? (
+                <video
+                  key={m.id}
+                  src={`/media/${m.id}`}
+                  class="w-full rounded-xl"
+                  controls
+                  muted
+                  loop
+                  playsinline
+                />
+              ) : (
+                <img
+                  key={m.id}
+                  src={`/media/${m.id}`}
+                  alt={m.filename}
+                  class="w-full rounded-xl"
+                />
+              )
+            )}
           </div>
         )}
         {post.content && (

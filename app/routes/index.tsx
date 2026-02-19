@@ -1,5 +1,6 @@
 import { createRoute } from "honox/factory";
 import LogoAnimation from "../islands/logo-animation";
+import { isVideo } from "../lib/media";
 
 type Post = {
   id: number;
@@ -148,7 +149,7 @@ function PostCard({ post }: { post: Post }) {
     >
       {post.thumbnail_id && (
         <div class="overflow-hidden">
-          {post.thumbnail_mime_type?.startsWith('video/') ? (
+          {post.thumbnail_mime_type && isVideo(post.thumbnail_mime_type) ? (
             <video
               src={`/media/${post.thumbnail_id}`}
               class="w-full object-cover"
