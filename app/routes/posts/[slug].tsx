@@ -46,7 +46,7 @@ export default createRoute(async (c) => {
   return c.render(
     <div class="min-h-screen bg-[#f5f0eb]">
       <title>{post.title} — UI Lab</title>
-      <div class="max-w-2xl mx-auto px-4 py-16">
+      <div class="max-w-3xl mx-auto px-4 py-16">
         <a href="/" class="text-sm text-gray-400 hover:text-gray-700 mb-8 inline-block">
           ← Back
         </a>

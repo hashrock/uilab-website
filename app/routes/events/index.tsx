@@ -41,7 +41,7 @@ export default createRoute(async (c) => {
     <div class="min-h-screen bg-[#f5f0eb]">
       <title>Events — UI Lab</title>
 
-      <header class="max-w-3xl mx-auto px-4 pt-16 pb-10">
+      <header class="max-w-4xl mx-auto px-4 pt-16 pb-10">
         <a href="/" class="text-sm text-gray-400 hover:text-gray-700 mb-6 inline-block">
           ← UI Lab
         </a>
@@ -49,7 +49,7 @@ export default createRoute(async (c) => {
         <p class="text-gray-500 mt-2">UI Labのイベント一覧</p>
       </header>
 
-      <main class="max-w-3xl mx-auto px-4 pb-20 space-y-12">
+      <main class="max-w-4xl mx-auto px-4 pb-20 space-y-12">
         {/* Upcoming */}
         <section>
           <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-4">

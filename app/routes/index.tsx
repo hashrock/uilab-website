@@ -60,7 +60,7 @@ export default createRoute(async (c) => {
 
       {/* Hero */}
       <header class="text-center pt-20 pb-16 px-4">
-        <div class="w-full max-w-4xl mx-auto h-40 mb-8">
+        <div class="w-full max-w-6xl mx-auto h-[200px] mb-8">
           <LogoAnimation />
         </div>
         <p class="text-sm text-gray-400 max-w-xl mx-auto">
@@ -70,7 +70,7 @@ export default createRoute(async (c) => {
 
       {/* Upcoming Events */}
       {upcomingEvents.results.length > 0 && (
-        <section class="max-w-5xl mx-auto px-4 pb-12">
+        <section class="max-w-7xl mx-auto px-4 pb-12">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-900">Upcoming Events</h2>
             <a href="/events" class="text-sm text-gray-500 hover:text-gray-900">
@@ -86,7 +86,7 @@ export default createRoute(async (c) => {
       )}
 
       {/* Gallery */}
-      <main class="max-w-5xl mx-auto px-4 pb-20">
+      <main class="max-w-7xl mx-auto px-4 pb-20">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">Gallery</h2>
         {posts.results.length === 0 ? (
           <p class="text-center text-gray-400 py-20">No posts yet.</p>
@@ -148,11 +148,11 @@ function PostCard({ post }: { post: Post }) {
       class="block break-inside-avoid mb-4 bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 group"
     >
       {post.thumbnail_id && (
-        <div class="overflow-hidden">
+        <div class="overflow-hidden aspect-[4/3]">
           {post.thumbnail_mime_type && isVideo(post.thumbnail_mime_type) ? (
             <video
               src={`/media/${post.thumbnail_id}`}
-              class="w-full object-cover"
+              class="w-full h-full object-cover"
               autoplay
               muted
               loop
@@ -162,7 +162,7 @@ function PostCard({ post }: { post: Post }) {
             <img
               src={`/media/${post.thumbnail_id}`}
               alt={post.title}
-              class="w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+              class="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
               loading="lazy"
             />
           )}
@@ -172,7 +172,9 @@ function PostCard({ post }: { post: Post }) {
         <h2 class="font-semibold text-gray-900 text-base leading-snug mb-1">
           {post.title}
         </h2>
-        {post.author_name && <p class="text-xs text-gray-400 mb-2">{post.author_name}</p>}
+        {post.author_name && (
+          <p class="text-xs text-gray-400 mb-2">{post.author_name}</p>
+        )}
         {post.content && (
           <p class="text-sm text-gray-500 leading-relaxed line-clamp-3 mb-3">
             {post.content}
