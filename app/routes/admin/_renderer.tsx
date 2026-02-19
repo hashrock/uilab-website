@@ -4,6 +4,19 @@ import { Link } from 'honox/server'
 export default jsxRenderer(({ children, title }) => {
   const c = useRequestContext()
   const userEmail = c.var.userEmail ?? ''
+  const path = new URL(c.req.url).pathname
+
+  const navLink = (href: string, label: string) => {
+    const isActive = path.startsWith(href)
+    return (
+      <a
+        href={href}
+        class={`text-sm ${isActive ? 'text-white font-semibold' : 'text-gray-400 hover:text-white'}`}
+      >
+        {label}
+      </a>
+    )
+  }
 
   return (
     <html lang="ja">
@@ -19,14 +32,15 @@ export default jsxRenderer(({ children, title }) => {
             <a href="/admin" class="font-bold text-lg tracking-tight">
               UI Lab Admin
             </a>
-            <a href="/admin/posts" class="text-gray-300 hover:text-white text-sm">
-              記事
-            </a>
-            <a href="/admin/events" class="text-gray-300 hover:text-white text-sm">
-              イベント
-            </a>
+            {navLink('/admin/posts', '記事')}
+            {navLink('/admin/events', 'イベント')}
           </div>
-          <div class="text-gray-400 text-sm">{userEmail}</div>
+          <div class="flex items-center gap-4">
+            <a href="/" class="text-gray-400 hover:text-white text-sm">
+              ← サイトへ
+            </a>
+            <span class="text-gray-400 text-sm">{userEmail}</span>
+          </div>
         </nav>
         <main class="max-w-5xl mx-auto px-6 py-8">{children}</main>
       </body>

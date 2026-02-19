@@ -79,6 +79,7 @@ export default createRoute(async (c) => {
                   key={m.id}
                   src={`/media/${m.id}`}
                   class="w-full rounded-xl"
+                  autoplay
                   controls
                   muted
                   loop

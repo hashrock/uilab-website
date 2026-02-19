@@ -98,6 +98,12 @@ export default createRoute(async (c) => {
           </div>
         )}
       </main>
+
+      <footer class="text-center py-8 px-4">
+        <a href="/admin" class="text-xs text-gray-300 hover:text-gray-500 transition-colors">
+          Admin
+        </a>
+      </footer>
     </div>,
   );
 });

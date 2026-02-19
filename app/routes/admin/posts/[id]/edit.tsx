@@ -112,9 +112,21 @@ function EditForm({
 }) {
   return (
     <div>
-      <div class="flex items-center gap-3 mb-6">
-        <a href="/admin/posts" class="text-gray-400 hover:text-gray-600 text-sm">← 一覧に戻る</a>
-        <h1 class="text-2xl font-bold">記事を編集</h1>
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+          <a href="/admin/posts" class="text-gray-400 hover:text-gray-600 text-sm">← 一覧に戻る</a>
+          <h1 class="text-2xl font-bold">記事を編集</h1>
+        </div>
+        {post.status === 'published' && post.slug && (
+          <a
+            href={`/posts/${post.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-sm text-gray-400 hover:text-gray-700"
+          >
+            公開ページを見る →
+          </a>
+        )}
       </div>
 
       {error && (
