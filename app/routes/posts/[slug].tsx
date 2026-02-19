@@ -50,7 +50,18 @@ export default createRoute(async (c) => {
         <a href="/" class="text-sm text-gray-400 hover:text-gray-700 mb-8 inline-block">
           ← Back
         </a>
-        <h1 class="text-3xl font-bold text-gray-900 mb-4">{post.title}</h1>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">{post.title}</h1>
+        {post.author_name && (
+          <p class="text-sm text-gray-400 mb-4">
+            {post.author_url ? (
+              <a href={post.author_url} target="_blank" rel="noopener noreferrer" class="hover:text-gray-700">
+                {post.author_name}
+              </a>
+            ) : (
+              post.author_name
+            )}
+          </p>
+        )}
         {tags.length > 0 && (
           <div class="flex flex-wrap gap-1.5 mb-6">
             {tags.map((tag) => (
