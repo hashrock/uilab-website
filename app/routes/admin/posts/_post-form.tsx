@@ -35,16 +35,15 @@ export function PostFormFields({
         </div>
 
         <div>
-          <label class="block text-sm font-medium mb-1">スラッグ <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium mb-1">スラッグ</label>
           <input
             type="text"
             name="slug"
             value={v.slug ?? ''}
-            placeholder="my-post-slug"
+            placeholder="空白の場合は自動発行"
             class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-gray-900"
-            required
           />
-          <p class="text-xs text-gray-400 mt-1">英小文字・数字・ハイフンのみ使用可</p>
+          <p class="text-xs text-gray-400 mt-1">英小文字・数字・ハイフンのみ使用可（省略時は自動発行）</p>
         </div>
 
         <div>
@@ -143,7 +142,7 @@ export function StatusAndSubmit({
             type="radio"
             name="status"
             value="draft"
-            checked={!status || status === 'draft'}
+            checked={status === 'draft'}
           />
           下書き
         </label>
@@ -152,7 +151,7 @@ export function StatusAndSubmit({
             type="radio"
             name="status"
             value="published"
-            checked={status === 'published'}
+            checked={!status || status === 'published'}
           />
           公開
         </label>

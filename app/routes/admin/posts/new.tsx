@@ -5,9 +5,9 @@ import { PostFormFields, StatusAndSubmit, type PostFormValues } from './_post-fo
 
 const postSchema = z.object({
   title: z.string().min(1, 'タイトルは必須です'),
-  slug: z.string().min(1, 'スラッグは必須です').regex(/^[a-z0-9-]+$/, 'スラッグは英小文字・数字・ハイフンのみ使えます'),
+  slug: z.string().regex(/^[a-z0-9-]*$/, 'スラッグは英小文字・数字・ハイフンのみ使えます').default(''),
   content: z.string().default(''),
-  status: z.enum(['draft', 'published']),
+  status: z.enum(['draft', 'published']).default('published'),
   author_name: z.string().default(''),
   author_url: z.string().default(''),
   github_url: z.string().default(''),
@@ -22,16 +22,22 @@ export const POST = createRoute(
     const db = c.env.DB
 
     try {
-      await db
+      const tempSlug = data.slug || `_tmp_${Date.now()}`
+      const result = await db
         .prepare(
           `INSERT INTO posts (title, slug, content, status, author_name, author_url, github_url, demo_url, tags)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
-          data.title, data.slug, data.content, data.status,
+          data.title, tempSlug, data.content, data.status,
           data.author_name, data.author_url, data.github_url, data.demo_url, data.tags
         )
         .run()
+
+      if (!data.slug) {
+        const newId = result.meta.last_row_id
+        await db.prepare('UPDATE posts SET slug = ? WHERE id = ?').bind(String(newId), newId).run()
+      }
 
       return c.redirect('/admin/posts')
     } catch (e: any) {

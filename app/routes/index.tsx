@@ -10,6 +10,7 @@ type Post = {
   tags: string;
   created_at: string;
   thumbnail_id: number | null;
+  thumbnail_mime_type: string | null;
 };
 
 type Event = {
@@ -31,7 +32,8 @@ export default createRoute(async (c) => {
       .prepare(
         `SELECT
           p.id, p.title, p.slug, p.content, p.status, p.tags, p.created_at,
-          (SELECT m.id FROM media m WHERE m.post_id = p.id ORDER BY m.created_at ASC LIMIT 1) AS thumbnail_id
+          (SELECT m.id FROM media m WHERE m.post_id = p.id ORDER BY CASE WHEN m.mime_type LIKE 'video/%' THEN 0 ELSE 1 END ASC, m.created_at ASC LIMIT 1) AS thumbnail_id,
+          (SELECT m.mime_type FROM media m WHERE m.post_id = p.id ORDER BY CASE WHEN m.mime_type LIKE 'video/%' THEN 0 ELSE 1 END ASC, m.created_at ASC LIMIT 1) AS thumbnail_mime_type
         FROM posts p
         WHERE p.status = 'published'
         ORDER BY p.created_at DESC`,
@@ -144,12 +146,23 @@ function PostCard({ post }: { post: Post }) {
     >
       {post.thumbnail_id && (
         <div class="overflow-hidden">
-          <img
-            src={`/media/${post.thumbnail_id}`}
-            alt={post.title}
-            class="w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-            loading="lazy"
-          />
+          {post.thumbnail_mime_type?.startsWith('video/') ? (
+            <video
+              src={`/media/${post.thumbnail_id}`}
+              class="w-full object-cover"
+              autoplay
+              muted
+              loop
+              playsinline
+            />
+          ) : (
+            <img
+              src={`/media/${post.thumbnail_id}`}
+              alt={post.title}
+              class="w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+              loading="lazy"
+            />
+          )}
         </div>
       )}
       <div class="p-5">
