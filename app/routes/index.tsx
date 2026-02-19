@@ -8,6 +8,8 @@ type Post = {
   content: string;
   status: string;
   tags: string;
+  author_name: string;
+  author_url: string;
   created_at: string;
   thumbnail_id: number | null;
   thumbnail_mime_type: string | null;
@@ -31,7 +33,7 @@ export default createRoute(async (c) => {
     db
       .prepare(
         `SELECT
-          p.id, p.title, p.slug, p.content, p.status, p.tags, p.created_at,
+          p.id, p.title, p.slug, p.content, p.status, p.tags, p.author_name, p.author_url, p.created_at,
           (SELECT m.id FROM media m WHERE m.post_id = p.id ORDER BY CASE WHEN m.mime_type LIKE 'video/%' THEN 0 ELSE 1 END ASC, m.created_at ASC LIMIT 1) AS thumbnail_id,
           (SELECT m.mime_type FROM media m WHERE m.post_id = p.id ORDER BY CASE WHEN m.mime_type LIKE 'video/%' THEN 0 ELSE 1 END ASC, m.created_at ASC LIMIT 1) AS thumbnail_mime_type
         FROM posts p
@@ -166,9 +168,10 @@ function PostCard({ post }: { post: Post }) {
         </div>
       )}
       <div class="p-5">
-        <h2 class="font-semibold text-gray-900 text-base leading-snug mb-2">
+        <h2 class="font-semibold text-gray-900 text-base leading-snug mb-1">
           {post.title}
         </h2>
+        {post.author_name && <p class="text-xs text-gray-400 mb-2">{post.author_name}</p>}
         {post.content && (
           <p class="text-sm text-gray-500 leading-relaxed line-clamp-3 mb-3">
             {post.content}
