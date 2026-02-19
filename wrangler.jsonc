@@ -20,7 +20,7 @@
       // wrangler d1 create uilab-content で取得したIDをここに設定
       "binding": "DB",
       "database_name": "uilab-content",
-      "database_id": ""
+      "database_id": "3e6d0214-5c3a-4e4c-942a-94090f1a71b9"
     }
   ]
 }

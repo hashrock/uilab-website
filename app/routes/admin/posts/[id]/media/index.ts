@@ -37,7 +37,7 @@ export const POST = createRoute(async (c) => {
   const r2Key = ext ? `${uuid}.${ext}` : uuid
   const safeFilename = file.name.replace(/[^\w.\-]/g, '_')
 
-  await c.env.BUCKET.put(r2Key, file.stream(), {
+  await c.env.BUCKET.put(r2Key, await file.arrayBuffer(), {
     httpMetadata: { contentType: file.type },
   })
 
