@@ -1,4 +1,5 @@
 import { createRoute } from "honox/factory";
+import LogoAnimation from "../islands/logo-animation";
 
 type Post = {
   id: number;
@@ -11,18 +12,42 @@ type Post = {
   thumbnail_id: number | null;
 };
 
+type Event = {
+  id: number;
+  title: string;
+  connpass_url: string;
+  description: string;
+  started_at: string;
+  ended_at: string;
+  place: string;
+};
+
 export default createRoute(async (c) => {
   const db = c.env.DB;
-  const posts = await db
-    .prepare(
-      `SELECT
-        p.id, p.title, p.slug, p.content, p.status, p.tags, p.created_at,
-        (SELECT m.id FROM media m WHERE m.post_id = p.id ORDER BY m.created_at ASC LIMIT 1) AS thumbnail_id
-      FROM posts p
-      WHERE p.status = 'published'
-      ORDER BY p.created_at DESC`
-    )
-    .all<Post>();
+  const now = new Date().toISOString().slice(0, 16);
+
+  const [posts, upcomingEvents] = await Promise.all([
+    db
+      .prepare(
+        `SELECT
+          p.id, p.title, p.slug, p.content, p.status, p.tags, p.created_at,
+          (SELECT m.id FROM media m WHERE m.post_id = p.id ORDER BY m.created_at ASC LIMIT 1) AS thumbnail_id
+        FROM posts p
+        WHERE p.status = 'published'
+        ORDER BY p.created_at DESC`,
+      )
+      .all<Post>(),
+    db
+      .prepare(
+        `SELECT id, title, connpass_url, description, started_at, ended_at, place
+         FROM events
+         WHERE status = 'published' AND started_at >= ?
+         ORDER BY started_at ASC
+         LIMIT 3`,
+      )
+      .bind(now)
+      .all<Event>(),
+  ]);
 
   return c.render(
     <div class="min-h-screen bg-[#f5f0eb]">
@@ -30,13 +55,34 @@ export default createRoute(async (c) => {
 
       {/* Hero */}
       <header class="text-center pt-20 pb-16 px-4">
-        <h1 class="text-5xl font-bold leading-tight tracking-tight text-gray-900 max-w-xl mx-auto">
-          A collection of UI details worth noticing
-        </h1>
+        <div class="w-full max-w-4xl mx-auto h-40 mb-8">
+          <LogoAnimation />
+        </div>
+        <p class="text-sm text-gray-400 max-w-xl mx-auto">
+          テーマに沿ったUIを作って持ち寄る"UI大喜利"イベント
+        </p>
       </header>
+
+      {/* Upcoming Events */}
+      {upcomingEvents.results.length > 0 && (
+        <section class="max-w-5xl mx-auto px-4 pb-12">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Upcoming Events</h2>
+            <a href="/events" class="text-sm text-gray-500 hover:text-gray-900">
+              すべて見る →
+            </a>
+          </div>
+          <div class="flex flex-col gap-3">
+            {upcomingEvents.results.map((event) => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Gallery */}
       <main class="max-w-5xl mx-auto px-4 pb-20">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Gallery</h2>
         {posts.results.length === 0 ? (
           <p class="text-center text-gray-400 py-20">No posts yet.</p>
         ) : (
@@ -50,6 +96,38 @@ export default createRoute(async (c) => {
     </div>,
   );
 });
+
+function EventCard({ event }: { event: Event }) {
+  const start = event.started_at ? event.started_at.replace("T", " ") : "";
+  return (
+    <a
+      href={event.connpass_url || `/events`}
+      target={event.connpass_url ? "_blank" : undefined}
+      rel={event.connpass_url ? "noopener noreferrer" : undefined}
+      class="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 shadow-sm hover:shadow-md transition-shadow duration-200 group"
+    >
+      <div class="flex-shrink-0 text-center bg-[#f5f0eb] rounded-xl px-4 py-3 min-w-[56px]">
+        <div class="text-xs text-gray-500 font-medium uppercase tracking-wide leading-none mb-1">
+          {start.slice(5, 7)}/{start.slice(8, 10)}
+        </div>
+        <div class="text-lg font-bold text-gray-900 leading-none">
+          {start.slice(11, 16)}
+        </div>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="font-semibold text-gray-900 group-hover:underline truncate">
+          {event.title}
+        </p>
+        {event.place && (
+          <p class="text-sm text-gray-400 mt-0.5 truncate">{event.place}</p>
+        )}
+      </div>
+      <div class="flex-shrink-0 text-gray-300 group-hover:text-gray-500 transition-colors">
+        →
+      </div>
+    </a>
+  );
+}
 
 function PostCard({ post }: { post: Post }) {
   const tags = post.tags

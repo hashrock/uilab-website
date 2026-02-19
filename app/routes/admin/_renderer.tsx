@@ -22,6 +22,9 @@ export default jsxRenderer(({ children, title }) => {
             <a href="/admin/posts" class="text-gray-300 hover:text-white text-sm">
               記事
             </a>
+            <a href="/admin/events" class="text-gray-300 hover:text-white text-sm">
+              イベント
+            </a>
           </div>
           <div class="text-gray-400 text-sm">{userEmail}</div>
         </nav>
