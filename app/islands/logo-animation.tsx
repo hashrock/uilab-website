@@ -77,6 +77,41 @@ function updateRow(row: number, exps: number[]) {
   el("B-bar3")?.setAttribute("width", String(bExp + 6));
 }
 
+// Reference letter centers (using average expansion EXPAND_PER_ROW/4 per letter)
+const AVG_EXP = EXPAND_PER_ROW / 4;
+const REF_CENTERS = (() => {
+  const uCenter = LETTERS.U.width / 2;
+  const iX = LETTERS.U.width + AVG_EXP + GAP;
+  const lX = iX + LETTERS.I.width + GAP;
+  const lCenter = lX + LETTERS.L.width / 2;
+  const aX = lX + LETTERS.L.width + AVG_EXP + GAP;
+  const aCenter = aX + LETTERS.A.width / 2;
+  const bX = aX + LETTERS.A.width + AVG_EXP + GAP;
+  const bCenter = bX + LETTERS.B.width / 2;
+  return [uCenter, lCenter, aCenter, bCenter];
+})();
+
+function computeMouseTargets(mouseX: number, mouseY: number): number[][] {
+  const baseSigma = 250;
+
+  return Array.from({ length: ROWS }, (_, r) => {
+    const rowCenterY = r * (ROW_HEIGHT + GAP) + ROW_HEIGHT / 2;
+    const yDist = Math.abs(mouseY - rowCenterY);
+    const yInfluence = Math.exp(-(yDist * yDist) / (2 * 500 * 500));
+
+    // Tight sigma near mouse row, wide sigma far away (even distribution)
+    const sigma = baseSigma + (1 - yInfluence) * 3000;
+
+    const weights = REF_CENTERS.map((cx) => {
+      const dx = mouseX - cx;
+      return Math.exp(-(dx * dx) / (2 * sigma * sigma));
+    });
+
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    return weights.map((w) => (w / totalWeight) * EXPAND_PER_ROW);
+  });
+}
+
 function LogoRowStatic({ rowIndex }: { rowIndex: number }) {
   const r = rowIndex;
   const maskId = `row${r}`;
@@ -204,7 +239,13 @@ function LogoRowStatic({ rowIndex }: { rowIndex: number }) {
 }
 
 export default function LogoAnimation() {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const mouseState = useRef({ x: 0, y: 0, inside: false });
+
   useEffect(() => {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+
     const current = Array.from({ length: ROWS }, (_, r) =>
       generateRowShares(r * 1000, DEFAULT_INTENSITY),
     );
@@ -216,7 +257,7 @@ export default function LogoAnimation() {
       updateRow(r, current[r]);
     }
 
-    // Periodically update targets
+    // Periodically update targets (auto mode)
     let frame = 0;
     const updateTargets = () => {
       frame++;
@@ -225,10 +266,43 @@ export default function LogoAnimation() {
       );
     };
 
-    let targetIntervalId = setInterval(
+    let targetIntervalId: ReturnType<typeof setInterval> | null = setInterval(
       updateTargets,
       (DEFAULT_DURATION + DEFAULT_HOLD) * 1000,
     );
+
+    // Mouse event handlers
+    const handleMouseMove = (e: MouseEvent) => {
+      const pt = new DOMPoint(e.clientX, e.clientY);
+      const ctm = svgEl.getScreenCTM();
+      if (!ctm) return;
+      const svgPt = pt.matrixTransform(ctm.inverse());
+
+      const wasInside = mouseState.current.inside;
+      mouseState.current = { x: svgPt.x, y: svgPt.y, inside: true };
+
+      // Stop auto animation when mouse enters
+      if (!wasInside && targetIntervalId !== null) {
+        clearInterval(targetIntervalId);
+        targetIntervalId = null;
+      }
+    };
+
+    const handleMouseLeave = () => {
+      mouseState.current.inside = false;
+
+      // Restart auto animation
+      if (targetIntervalId === null) {
+        updateTargets();
+        targetIntervalId = setInterval(
+          updateTargets,
+          (DEFAULT_DURATION + DEFAULT_HOLD) * 1000,
+        );
+      }
+    };
+
+    svgEl.addEventListener("mousemove", handleMouseMove);
+    svgEl.addEventListener("mouseleave", handleMouseLeave);
 
     // rAF animation loop
     let lastTime = performance.now();
@@ -237,6 +311,14 @@ export default function LogoAnimation() {
     const animate = (now: number) => {
       const dt = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
+
+      // Update targets based on mouse position when inside SVG
+      if (mouseState.current.inside) {
+        targets = computeMouseTargets(
+          mouseState.current.x,
+          mouseState.current.y,
+        );
+      }
 
       for (let r = 0; r < ROWS; r++) {
         for (let i = 0; i < 4; i++) {
@@ -259,12 +341,15 @@ export default function LogoAnimation() {
 
     return () => {
       cancelAnimationFrame(rafId);
-      clearInterval(targetIntervalId);
+      if (targetIntervalId !== null) clearInterval(targetIntervalId);
+      svgEl.removeEventListener("mousemove", handleMouseMove);
+      svgEl.removeEventListener("mouseleave", handleMouseLeave);
     };
   }, []);
 
   return (
     <svg
+      ref={svgRef}
       viewBox={`0 0 ${CONTAINER_WIDTH} ${HEIGHT}`}
       preserveAspectRatio="xMidYMid slice"
       fill="none"
