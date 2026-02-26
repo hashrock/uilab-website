@@ -1,24 +1,27 @@
 import { createMiddleware } from 'hono/factory'
+import { getSession } from '../../lib/session'
 
-const cfAccessMiddleware = createMiddleware(async (c, next) => {
-  // Cloudflare Access は本番環境でリクエストをブロックします。
-  // このミドルウェアはJWTからユーザー情報を取り出すだけです。
-  const jwt = c.req.header('CF-Access-Jwt-Assertion')
-
-  if (jwt) {
-    try {
-      const payload = JSON.parse(atob(jwt.split('.')[1]))
-      c.set('userEmail', payload.email ?? 'unknown')
-    } catch {
-      c.set('userEmail', 'unknown')
-    }
-  } else {
-    // ローカル開発時はCF Accessなし
-    c.set('userEmail', 'dev@local')
+const authMiddleware = createMiddleware(async (c, next) => {
+  // ローカル開発時（SESSION_SECRET 未設定）はデフォルトユーザーを使用
+  if (!c.env.SESSION_SECRET) {
+    c.set('user', { email: 'dev@local', name: 'Developer', picture: '' })
+    return next()
   }
+
+  const session = await getSession(c)
+
+  if (!session) {
+    return c.redirect('/auth/login')
+  }
+
+  c.set('user', {
+    email: session.email,
+    name: session.name,
+    picture: session.picture,
+  })
 
   await next()
 })
 
 // honox の _middleware.ts は配列をエクスポートする必要がある
-export default [cfAccessMiddleware]
+export default [authMiddleware]

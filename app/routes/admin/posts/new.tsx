@@ -51,7 +51,11 @@ export const POST = createRoute(
 )
 
 export default createRoute((c) => {
-  return c.render(<NewForm />, { title: '新規記事' })
+  const user = c.var.user
+  return c.render(
+    <NewForm defaultValues={{ author_name: user.name }} />,
+    { title: '新規記事' }
+  )
 })
 
 function NewForm({

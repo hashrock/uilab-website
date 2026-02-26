@@ -3,11 +3,18 @@ import type {} from 'hono'
 declare module 'hono' {
   interface Env {
     Variables: {
-      userEmail: string
+      user: {
+        email: string
+        name: string
+        picture: string
+      }
     }
     Bindings: {
       DB: D1Database
       BUCKET: R2Bucket
+      GOOGLE_CLIENT_ID: string
+      GOOGLE_CLIENT_SECRET: string
+      SESSION_SECRET: string
     }
   }
 
