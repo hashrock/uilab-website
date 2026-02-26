@@ -33,7 +33,7 @@ export default jsxRenderer(({ children, title }) => {
               UI Lab Admin
             </a>
             {navLink('/admin/posts', '記事')}
-            {navLink('/admin/events', 'イベント')}
+            {user.isAdmin && navLink('/admin/events', 'イベント')}
           </div>
           <div class="flex items-center gap-4">
             <a href="/" class="text-gray-400 hover:text-white text-sm">

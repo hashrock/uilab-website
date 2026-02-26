@@ -35,7 +35,9 @@ export default createRoute(async (c) => {
   })
 
   if (!tokenRes.ok) {
-    return c.text('トークンの取得に失敗しました', 500)
+    const errorBody = await tokenRes.text()
+    console.error('Token exchange failed:', tokenRes.status, errorBody)
+    return c.text(`トークンの取得に失敗しました: ${errorBody}`, 500)
   }
 
   const tokenData = await tokenRes.json<GoogleTokenResponse>()

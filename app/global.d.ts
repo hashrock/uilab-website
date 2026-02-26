@@ -7,6 +7,7 @@ declare module 'hono' {
         email: string
         name: string
         picture: string
+        isAdmin: boolean
       }
     }
     Bindings: {
