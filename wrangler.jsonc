@@ -22,5 +22,15 @@
       "database_name": "uilab-content",
       "database_id": "3e6d0214-5c3a-4e4c-942a-94090f1a71b9"
     }
-  ]
+  ],
+  // Google OAuth2 の設定は `wrangler secret put` で登録してください:
+  //   wrangler secret put GOOGLE_CLIENT_ID
+  //   wrangler secret put GOOGLE_CLIENT_SECRET
+  //   wrangler secret put SESSION_SECRET
+  // ローカル開発時は .dev.vars ファイルに記載:
+  //   DEV_MODE=true
+  //   GOOGLE_CLIENT_ID=xxx
+  //   GOOGLE_CLIENT_SECRET=xxx
+  //   SESSION_SECRET=xxx
+  "vars": {}
 }

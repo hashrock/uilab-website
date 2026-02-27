@@ -1,6 +1,7 @@
 import { createRoute } from "honox/factory";
 import LogoAnimation from "../islands/logo-animation";
 import { isVideo } from "../lib/media";
+import { getSession } from "../lib/session";
 
 type Post = {
   id: number;
@@ -29,6 +30,7 @@ type Event = {
 export default createRoute(async (c) => {
   const db = c.env.DB;
   const now = new Date().toISOString().slice(0, 16);
+  const session = await getSession(c);
 
   const [posts, upcomingEvents] = await Promise.all([
     db
@@ -100,9 +102,15 @@ export default createRoute(async (c) => {
       </main>
 
       <footer class="text-center py-8 px-4">
-        <a href="/admin" class="text-xs text-gray-300 hover:text-gray-500 transition-colors">
-          Admin
-        </a>
+        {session ? (
+          <a href="/admin/posts/new" class="inline-flex items-center gap-2 bg-gray-900 text-white text-sm px-5 py-2.5 rounded-full hover:bg-gray-700 transition-colors">
+            作品を投稿する
+          </a>
+        ) : (
+          <a href="/auth/login" class="inline-flex items-center gap-2 bg-gray-900 text-white text-sm px-5 py-2.5 rounded-full hover:bg-gray-700 transition-colors">
+            ログインして投稿する
+          </a>
+        )}
       </footer>
     </div>,
   );

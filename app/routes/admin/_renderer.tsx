@@ -3,7 +3,7 @@ import { Link } from 'honox/server'
 
 export default jsxRenderer(({ children, title }) => {
   const c = useRequestContext()
-  const userEmail = c.var.userEmail ?? ''
+  const user = c.var.user
   const path = new URL(c.req.url).pathname
 
   const navLink = (href: string, label: string) => {
@@ -33,13 +33,29 @@ export default jsxRenderer(({ children, title }) => {
               UI Lab Admin
             </a>
             {navLink('/admin/posts', '記事')}
-            {navLink('/admin/events', 'イベント')}
+            {user.isAdmin && navLink('/admin/events', 'イベント')}
           </div>
           <div class="flex items-center gap-4">
             <a href="/" class="text-gray-400 hover:text-white text-sm">
               ← サイトへ
             </a>
-            <span class="text-gray-400 text-sm">{userEmail}</span>
+            <div class="flex items-center gap-2">
+              {user.picture && (
+                <img
+                  src={user.picture}
+                  alt=""
+                  class="w-6 h-6 rounded-full"
+                  referrerpolicy="no-referrer"
+                />
+              )}
+              <span class="text-gray-400 text-sm">{user.name || user.email}</span>
+            </div>
+            <a
+              href="/auth/logout"
+              class="text-gray-500 hover:text-white text-xs border border-gray-700 rounded px-2 py-1"
+            >
+              ログアウト
+            </a>
           </div>
         </nav>
         <main class="max-w-5xl mx-auto px-6 py-8">{children}</main>
