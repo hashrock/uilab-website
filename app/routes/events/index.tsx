@@ -107,7 +107,9 @@ function EventDetail({ event, isPast }: { event: Event; isPast: boolean }) {
 
           {/* Info */}
           <div class="flex-1 min-w-0">
-            <h3 class="text-xl font-bold text-gray-900">{event.title}</h3>
+            <a href={`/events/${event.id}`} class="text-xl font-bold text-gray-900 hover:underline">
+              {event.title}
+            </a>
 
             <div class="mt-2 space-y-1 text-sm text-gray-500">
               {start && end && (

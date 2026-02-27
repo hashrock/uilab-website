@@ -12,6 +12,8 @@ type Post = {
   github_url: string;
   demo_url: string;
   created_at: string;
+  event_id: number | null;
+  event_title: string | null;
 };
 
 type Media = {
@@ -26,8 +28,11 @@ export default createRoute(async (c) => {
 
   const post = await db
     .prepare(
-      `SELECT id, title, slug, content, tags, author_name, author_url, github_url, demo_url, created_at
-       FROM posts WHERE slug = ? AND status = 'published'`
+      `SELECT p.id, p.title, p.slug, p.content, p.tags, p.author_name, p.author_url, p.github_url, p.demo_url, p.created_at,
+              p.event_id, e.title AS event_title
+       FROM posts p
+       LEFT JOIN events e ON p.event_id = e.id
+       WHERE p.slug = ? AND p.status = 'published'`
     )
     .bind(slug)
     .first<Post>();
@@ -62,8 +67,16 @@ export default createRoute(async (c) => {
             )}
           </p>
         )}
-        {tags.length > 0 && (
+        {(post.event_id || tags.length > 0) && (
           <div class="flex flex-wrap gap-1.5 mb-6">
+            {post.event_id && post.event_title && (
+              <a
+                href={`/events/${post.event_id}`}
+                class="text-xs bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full border border-blue-200 hover:bg-blue-100 transition-colors"
+              >
+                {post.event_title}
+              </a>
+            )}
             {tags.map((tag) => (
               <span key={tag} class="text-xs bg-white text-gray-500 px-2.5 py-1 rounded-full border border-gray-200">
                 {tag}

@@ -15,6 +15,8 @@ type Post = {
   created_at: string;
   thumbnail_id: number | null;
   thumbnail_mime_type: string | null;
+  event_id: number | null;
+  event_title: string | null;
 };
 
 type Event = {
@@ -37,9 +39,11 @@ export default createRoute(async (c) => {
       .prepare(
         `SELECT
           p.id, p.title, p.slug, p.content, p.status, p.tags, p.author_name, p.author_url, p.created_at,
+          p.event_id, e.title AS event_title,
           (SELECT m.id FROM media m WHERE m.post_id = p.id ORDER BY CASE WHEN m.mime_type LIKE 'video/%' THEN 0 ELSE 1 END ASC, m.created_at ASC LIMIT 1) AS thumbnail_id,
           (SELECT m.mime_type FROM media m WHERE m.post_id = p.id ORDER BY CASE WHEN m.mime_type LIKE 'video/%' THEN 0 ELSE 1 END ASC, m.created_at ASC LIMIT 1) AS thumbnail_mime_type
         FROM posts p
+        LEFT JOIN events e ON p.event_id = e.id
         WHERE p.status = 'published'
         ORDER BY p.created_at DESC`,
       )
@@ -120,9 +124,7 @@ function EventCard({ event }: { event: Event }) {
   const start = event.started_at ? event.started_at.replace("T", " ") : "";
   return (
     <a
-      href={event.connpass_url || `/events`}
-      target={event.connpass_url ? "_blank" : undefined}
-      rel={event.connpass_url ? "noopener noreferrer" : undefined}
+      href={`/events/${event.id}`}
       class="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 shadow-sm hover:shadow-md transition-shadow duration-200 group"
     >
       <div class="flex-shrink-0 text-center bg-[#f5f0eb] rounded-xl px-4 py-3 min-w-[56px]">
@@ -194,8 +196,16 @@ function PostCard({ post }: { post: Post }) {
             {post.content}
           </p>
         )}
-        {tags.length > 0 && (
+        {(post.event_id || tags.length > 0) && (
           <div class="flex flex-wrap gap-1.5">
+            {post.event_id && post.event_title && (
+              <span
+                class="text-xs bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full hover:bg-blue-100 transition-colors cursor-pointer"
+                onclick={`event.preventDefault();event.stopPropagation();location.href='/events/${post.event_id}'`}
+              >
+                {post.event_title}
+              </span>
+            )}
             {tags.map((tag) => (
               <span
                 key={tag}

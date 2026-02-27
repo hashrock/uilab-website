@@ -1,7 +1,7 @@
 import { createRoute } from 'honox/factory'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { PostFormFields, StatusAndSubmit, type PostFormValues } from './_post-form'
+import { PostFormFields, StatusAndSubmit, type PostFormValues, type EventOption } from './_post-form'
 
 const postSchema = z.object({
   title: z.string().min(1, 'タイトルは必須です'),
@@ -13,6 +13,7 @@ const postSchema = z.object({
   github_url: z.string().default(''),
   demo_url: z.string().default(''),
   tags: z.string().default(''),
+  event_id: z.string().default(''),
 })
 
 export const POST = createRoute(
@@ -23,14 +24,15 @@ export const POST = createRoute(
 
     try {
       const tempSlug = data.slug || `_tmp_${Date.now()}`
+      const eventId = data.event_id ? Number(data.event_id) : null
       const result = await db
         .prepare(
-          `INSERT INTO posts (title, slug, content, status, author_name, author_url, github_url, demo_url, tags)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO posts (title, slug, content, status, author_name, author_url, github_url, demo_url, tags, event_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           data.title, tempSlug, data.content, data.status,
-          data.author_name, data.author_url, data.github_url, data.demo_url, data.tags
+          data.author_name, data.author_url, data.github_url, data.demo_url, data.tags, eventId
         )
         .run()
 
@@ -42,18 +44,21 @@ export const POST = createRoute(
       return c.redirect('/admin/posts')
     } catch (e: any) {
       const errorMessage = e?.message?.includes('UNIQUE') ? 'このスラッグはすでに使われています' : '保存に失敗しました'
+      const events = await db.prepare(`SELECT id, title FROM events ORDER BY started_at DESC`).all<EventOption>()
       return c.render(
-        <NewForm error={errorMessage} defaultValues={data} />,
+        <NewForm error={errorMessage} defaultValues={data} events={events.results} />,
         { title: '新規記事' }
       )
     }
   }
 )
 
-export default createRoute((c) => {
+export default createRoute(async (c) => {
   const user = c.var.user
+  const db = c.env.DB
+  const events = await db.prepare(`SELECT id, title FROM events ORDER BY started_at DESC`).all<EventOption>()
   return c.render(
-    <NewForm defaultValues={{ author_name: user.name }} />,
+    <NewForm defaultValues={{ author_name: user.name }} events={events.results} />,
     { title: '新規記事' }
   )
 })
@@ -61,9 +66,11 @@ export default createRoute((c) => {
 function NewForm({
   error,
   defaultValues,
+  events,
 }: {
   error?: string
   defaultValues?: Partial<PostFormValues>
+  events?: EventOption[]
 }) {
   return (
     <div>
@@ -79,7 +86,7 @@ function NewForm({
       )}
 
       <form method="post" class="space-y-5">
-        <PostFormFields values={defaultValues} />
+        <PostFormFields values={defaultValues} events={events} />
         <StatusAndSubmit status={defaultValues?.status} />
       </form>
     </div>
