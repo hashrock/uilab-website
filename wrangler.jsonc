@@ -28,6 +28,7 @@
   //   wrangler secret put GOOGLE_CLIENT_SECRET
   //   wrangler secret put SESSION_SECRET
   // ローカル開発時は .dev.vars ファイルに記載:
+  //   DEV_MODE=true
   //   GOOGLE_CLIENT_ID=xxx
   //   GOOGLE_CLIENT_SECRET=xxx
   //   SESSION_SECRET=xxx
