@@ -144,7 +144,7 @@ function EditForm({
       )}
 
       <form method="post" class="space-y-5">
-        <PostFormFields values={{ ...post, event_id: post.event_id ?? '' }} events={events} />
+        <PostFormFields values={{ ...post, event_id: post.event_id != null ? String(post.event_id) : '' }} events={events} />
         <StatusAndSubmit
           status={post.status}
           deleteButton={
