@@ -1,3 +1,8 @@
+export type EventOption = {
+  id: number
+  title: string
+}
+
 export type PostFormValues = {
   title: string
   slug: string
@@ -8,12 +13,15 @@ export type PostFormValues = {
   github_url: string
   demo_url: string
   tags: string
+  event_id: string
 }
 
 export function PostFormFields({
   values,
+  events,
 }: {
   values?: Partial<PostFormValues>
+  events?: EventOption[]
 }) {
   const v = values ?? {}
 
@@ -68,6 +76,24 @@ export function PostFormFields({
           />
           <p class="text-xs text-gray-400 mt-1">カンマ区切りで複数入力可</p>
         </div>
+
+        {events && events.length > 0 && (
+          <div>
+            <label class="block text-sm font-medium mb-1">イベント</label>
+            <select
+              name="event_id"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            >
+              <option value="">なし</option>
+              {events.map((e) => (
+                <option key={e.id} value={String(e.id)} selected={v.event_id === String(e.id)}>
+                  {e.title}
+                </option>
+              ))}
+            </select>
+            <p class="text-xs text-gray-400 mt-1">この作品が紐づくイベントを選択</p>
+          </div>
+        )}
       </section>
 
       {/* 作者情報 */}

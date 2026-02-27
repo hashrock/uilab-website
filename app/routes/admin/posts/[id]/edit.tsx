@@ -1,7 +1,7 @@
 import { createRoute } from 'honox/factory'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { PostFormFields, StatusAndSubmit, type PostFormValues } from '../_post-form'
+import { PostFormFields, StatusAndSubmit, type PostFormValues, type EventOption } from '../_post-form'
 
 type Post = PostFormValues & {
   id: number
@@ -27,6 +27,7 @@ const postSchema = z.object({
   github_url: z.string().default(''),
   demo_url: z.string().default(''),
   tags: z.string().default(''),
+  event_id: z.string().default(''),
 })
 
 async function fetchPost(db: D1Database, id: number) {
@@ -51,17 +52,18 @@ export const POST = createRoute(
     if (!post) return c.notFound()
 
     try {
+      const eventId = data.event_id ? Number(data.event_id) : null
       await db
         .prepare(
           `UPDATE posts SET
             title = ?, slug = ?, content = ?, status = ?,
-            author_name = ?, author_url = ?, github_url = ?, demo_url = ?, tags = ?,
+            author_name = ?, author_url = ?, github_url = ?, demo_url = ?, tags = ?, event_id = ?,
             updated_at = datetime('now')
            WHERE id = ?`
         )
         .bind(
           data.title, data.slug, data.content, data.status,
-          data.author_name, data.author_url, data.github_url, data.demo_url, data.tags,
+          data.author_name, data.author_url, data.github_url, data.demo_url, data.tags, eventId,
           id
         )
         .run()
@@ -69,9 +71,12 @@ export const POST = createRoute(
       return c.redirect('/admin/posts')
     } catch (e: any) {
       const errorMessage = e?.message?.includes('UNIQUE') ? 'このスラッグはすでに使われています' : '保存に失敗しました'
-      const mediaResult = await fetchMedia(db, id)
+      const [mediaResult, eventsResult] = await Promise.all([
+        fetchMedia(db, id),
+        db.prepare(`SELECT id, title FROM events ORDER BY started_at DESC`).all<EventOption>(),
+      ])
       return c.render(
-        <EditForm post={{ ...post, ...data }} mediaList={mediaResult.results} error={errorMessage} />,
+        <EditForm post={{ ...post, ...data }} mediaList={mediaResult.results} events={eventsResult.results} error={errorMessage} />,
         { title: '記事を編集' }
       )
     }
@@ -88,15 +93,16 @@ export default createRoute(async (c) => {
   const id = Number(c.req.param('id'))
   const db = c.env.DB
 
-  const [post, mediaResult] = await Promise.all([
+  const [post, mediaResult, eventsResult] = await Promise.all([
     fetchPost(db, id),
     fetchMedia(db, id),
+    db.prepare(`SELECT id, title FROM events ORDER BY started_at DESC`).all<EventOption>(),
   ])
 
   if (!post) return c.notFound()
 
   return c.render(
-    <EditForm post={post} mediaList={mediaResult.results} />,
+    <EditForm post={post} mediaList={mediaResult.results} events={eventsResult.results} />,
     { title: '記事を編集' }
   )
 })
@@ -104,10 +110,12 @@ export default createRoute(async (c) => {
 function EditForm({
   post,
   mediaList,
+  events,
   error,
 }: {
   post: Post
   mediaList: Media[]
+  events?: EventOption[]
   error?: string
 }) {
   return (
@@ -136,7 +144,7 @@ function EditForm({
       )}
 
       <form method="post" class="space-y-5">
-        <PostFormFields values={post} />
+        <PostFormFields values={{ ...post, event_id: post.event_id ?? '' }} events={events} />
         <StatusAndSubmit
           status={post.status}
           deleteButton={
