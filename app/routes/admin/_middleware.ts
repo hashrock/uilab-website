@@ -24,7 +24,7 @@ const authMiddleware = createMiddleware(async (c, next) => {
     email: session.email,
     name: session.name,
     picture: session.picture,
-    isAdmin: isAdminEmail(session.email),
+    isAdmin: await isAdminEmail(c.env.DB, session.email),
   })
 
   await next()

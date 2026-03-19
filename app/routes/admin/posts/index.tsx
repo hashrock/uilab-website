@@ -5,15 +5,22 @@ type Post = {
   title: string
   slug: string
   status: string
+  author_email: string
   created_at: string
   updated_at: string
 }
 
 export default createRoute(async (c) => {
   const db = c.env.DB
-  const posts = await db
-    .prepare(`SELECT id, title, slug, status, created_at, updated_at FROM posts ORDER BY created_at DESC`)
-    .all<Post>()
+  const user = c.var.user
+  const posts = user.isAdmin
+    ? await db
+        .prepare(`SELECT id, title, slug, status, author_email, created_at, updated_at FROM posts ORDER BY created_at DESC`)
+        .all<Post>()
+    : await db
+        .prepare(`SELECT id, title, slug, status, author_email, created_at, updated_at FROM posts WHERE author_email = ? ORDER BY created_at DESC`)
+        .bind(user.email)
+        .all<Post>()
 
   return c.render(
     <div>

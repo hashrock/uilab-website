@@ -53,6 +53,15 @@ export default createRoute(async (c) => {
 
   const userInfo = await userRes.json<GoogleUserInfo>()
 
+  // Upsert user into DB
+  await c.env.DB
+    .prepare(
+      `INSERT INTO users (email, name, picture) VALUES (?, ?, ?)
+       ON CONFLICT(email) DO UPDATE SET name = excluded.name, picture = excluded.picture, updated_at = datetime('now')`
+    )
+    .bind(userInfo.email, userInfo.name, userInfo.picture)
+    .run()
+
   // Create session cookie
   const cookie = await createSession(c, {
     email: userInfo.email,

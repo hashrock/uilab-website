@@ -25,14 +25,15 @@ export const POST = createRoute(
     try {
       const tempSlug = data.slug || `_tmp_${Date.now()}`
       const eventId = data.event_id ? Number(data.event_id) : null
+      const authorEmail = c.var.user.email
       const result = await db
         .prepare(
-          `INSERT INTO posts (title, slug, content, status, author_name, author_url, github_url, demo_url, tags, event_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO posts (title, slug, content, status, author_name, author_url, github_url, demo_url, tags, event_id, author_email)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           data.title, tempSlug, data.content, data.status,
-          data.author_name, data.author_url, data.github_url, data.demo_url, data.tags, eventId
+          data.author_name, data.author_url, data.github_url, data.demo_url, data.tags, eventId, authorEmail
         )
         .run()
 

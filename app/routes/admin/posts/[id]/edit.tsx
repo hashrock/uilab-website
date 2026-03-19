@@ -5,6 +5,7 @@ import { PostFormFields, StatusAndSubmit, type PostFormValues, type EventOption 
 
 type Post = PostFormValues & {
   id: number
+  author_email: string
   created_at: string
   updated_at: string
 }
@@ -41,6 +42,11 @@ async function fetchMedia(db: D1Database, postId: number) {
     .all<Media>()
 }
 
+function canEdit(c: any, post: Post): boolean {
+  const user = c.var.user
+  return user.isAdmin || post.author_email === user.email
+}
+
 export const POST = createRoute(
   zValidator('form', postSchema),
   async (c) => {
@@ -50,6 +56,7 @@ export const POST = createRoute(
 
     const post = await fetchPost(db, id)
     if (!post) return c.notFound()
+    if (!canEdit(c, post)) return c.text('この記事を編集する権限がありません', 403)
 
     try {
       const eventId = data.event_id ? Number(data.event_id) : null
@@ -85,7 +92,11 @@ export const POST = createRoute(
 
 export const DELETE = createRoute(async (c) => {
   const id = Number(c.req.param('id'))
-  await c.env.DB.prepare(`DELETE FROM posts WHERE id = ?`).bind(id).run()
+  const db = c.env.DB
+  const post = await fetchPost(db, id)
+  if (!post) return c.notFound()
+  if (!canEdit(c, post)) return c.text('この記事を削除する権限がありません', 403)
+  await db.prepare(`DELETE FROM posts WHERE id = ?`).bind(id).run()
   return c.redirect('/admin/posts')
 })
 
@@ -100,6 +111,7 @@ export default createRoute(async (c) => {
   ])
 
   if (!post) return c.notFound()
+  if (!canEdit(c, post)) return c.text('この記事を閲覧する権限がありません', 403)
 
   return c.render(
     <EditForm post={post} mediaList={mediaResult.results} events={eventsResult.results} />,

@@ -34,6 +34,7 @@ export default jsxRenderer(({ children, title }) => {
             </a>
             {navLink('/admin/posts', '記事')}
             {user.isAdmin && navLink('/admin/events', 'イベント')}
+            {user.isAdmin && navLink('/admin/users', 'ユーザー')}
           </div>
           <div class="flex items-center gap-4">
             <a href="/" class="text-gray-400 hover:text-white text-sm">

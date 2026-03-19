@@ -17,6 +17,14 @@ export const POST = createRoute(async (c) => {
   const postId = Number(c.req.param('id'))
   if (isNaN(postId)) return c.notFound()
 
+  // 作成者チェック
+  const post = await c.env.DB.prepare(`SELECT author_email FROM posts WHERE id = ?`).bind(postId).first<{ author_email: string }>()
+  if (!post) return c.notFound()
+  const user = c.var.user
+  if (!user.isAdmin && post.author_email !== user.email) {
+    return c.text('この記事にメディアをアップロードする権限がありません', 403)
+  }
+
   const body = await c.req.parseBody()
   const file = body['file']
 
