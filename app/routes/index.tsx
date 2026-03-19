@@ -12,6 +12,8 @@ type Post = {
   tags: string;
   author_name: string;
   author_url: string;
+  author_user_id: number | null;
+  author_user_display_name: string | null;
   created_at: string;
   thumbnail_id: number | null;
   thumbnail_mime_type: string | null;
@@ -38,10 +40,11 @@ export default createRoute(async (c) => {
     db
       .prepare(
         `SELECT
-          p.id, p.title, p.slug, p.content, p.status, p.tags, p.author_name, p.author_url, p.created_at,
+          p.id, p.title, p.slug, p.content, p.status, p.tags, p.author_name, p.author_url, p.author_user_id, p.created_at,
           p.event_id, e.title AS event_title,
-          (SELECT m.id FROM media m WHERE m.post_id = p.id ORDER BY CASE WHEN m.mime_type LIKE 'video/%' THEN 0 ELSE 1 END ASC, m.created_at ASC LIMIT 1) AS thumbnail_id,
-          (SELECT m.mime_type FROM media m WHERE m.post_id = p.id ORDER BY CASE WHEN m.mime_type LIKE 'video/%' THEN 0 ELSE 1 END ASC, m.created_at ASC LIMIT 1) AS thumbnail_mime_type
+          (SELECT COALESCE(NULLIF(u.display_name, ''), u.name) FROM users u WHERE u.id = p.author_user_id) AS author_user_display_name,
+          COALESCE(p.thumbnail_id, (SELECT m.id FROM media m WHERE m.post_id = p.id ORDER BY m.sort_order ASC, m.created_at ASC LIMIT 1)) AS thumbnail_id,
+          (SELECT m.mime_type FROM media m WHERE m.id = COALESCE(p.thumbnail_id, (SELECT m2.id FROM media m2 WHERE m2.post_id = p.id ORDER BY m2.sort_order ASC, m2.created_at ASC LIMIT 1))) AS thumbnail_mime_type
         FROM posts p
         LEFT JOIN events e ON p.event_id = e.id
         WHERE p.status = 'published'
@@ -188,8 +191,20 @@ function PostCard({ post }: { post: Post }) {
         <h2 class="font-semibold text-gray-900 text-base leading-snug mb-1">
           {post.title}
         </h2>
-        {post.author_name && (
-          <p class="text-xs text-gray-400 mb-2">{post.author_name}</p>
+        {(post.author_user_id || post.author_name) && (
+          <p class="text-xs text-gray-400 mb-2">
+            {post.author_user_id ? (
+              <a
+                href={`/users/${post.author_user_id}`}
+                class="hover:text-gray-700"
+                onclick="event.stopPropagation()"
+              >
+                {post.author_user_display_name || post.author_name}
+              </a>
+            ) : (
+              post.author_name
+            )}
+          </p>
         )}
         {post.content && (
           <p class="text-sm text-gray-500 leading-relaxed line-clamp-3 mb-3">

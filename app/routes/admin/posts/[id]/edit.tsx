@@ -1,11 +1,14 @@
 import { createRoute } from 'honox/factory'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { PostFormFields, StatusAndSubmit, type PostFormValues, type EventOption } from '../_post-form'
+import { PostFormFields, StatusAndSubmit, type PostFormValues, type EventOption, type UserOption } from '../_post-form'
+import { canEditPost } from '../../../../lib/post-auth'
+import MediaManager from '../../../../islands/media-manager'
 
 type Post = PostFormValues & {
   id: number
   author_email: string
+  thumbnail_id: number | null
   created_at: string
   updated_at: string
 }
@@ -25,6 +28,7 @@ const postSchema = z.object({
   status: z.enum(['draft', 'published']),
   author_name: z.string().default(''),
   author_url: z.string().default(''),
+  author_user_id: z.string().default(''),
   github_url: z.string().default(''),
   demo_url: z.string().default(''),
   tags: z.string().default(''),
@@ -37,13 +41,26 @@ async function fetchPost(db: D1Database, id: number) {
 
 async function fetchMedia(db: D1Database, postId: number) {
   return db
-    .prepare(`SELECT id, filename, mime_type, size, created_at FROM media WHERE post_id = ? ORDER BY created_at DESC`)
+    .prepare(`SELECT id, filename, mime_type, size, created_at FROM media WHERE post_id = ? ORDER BY sort_order ASC, created_at ASC`)
     .bind(postId)
     .all<Media>()
 }
 
-function canEdit(c: any, post: Post): boolean {
-  const user = c.var.user
+type Collaborator = {
+  id: number
+  user_email: string
+  status: string
+  created_at: string
+}
+
+async function fetchCollaborators(db: D1Database, postId: number) {
+  return db
+    .prepare(`SELECT id, user_email, status, created_at FROM post_collaborators WHERE post_id = ? ORDER BY created_at DESC`)
+    .bind(postId)
+    .all<Collaborator>()
+}
+
+function isOwnerOrAdmin(user: { email: string; isAdmin: boolean }, post: Post): boolean {
   return user.isAdmin || post.author_email === user.email
 }
 
@@ -56,21 +73,23 @@ export const POST = createRoute(
 
     const post = await fetchPost(db, id)
     if (!post) return c.notFound()
-    if (!canEdit(c, post)) return c.text('この記事を編集する権限がありません', 403)
+    if (!(await canEditPost(db, post.author_email, c.var.user.email, c.var.user.isAdmin, id)))
+      return c.text('この記事を編集する権限がありません', 403)
 
     try {
       const eventId = data.event_id ? Number(data.event_id) : null
+      const authorUserId = data.author_user_id ? Number(data.author_user_id) : null
       await db
         .prepare(
           `UPDATE posts SET
             title = ?, slug = ?, content = ?, status = ?,
-            author_name = ?, author_url = ?, github_url = ?, demo_url = ?, tags = ?, event_id = ?,
+            author_name = ?, author_url = ?, author_user_id = ?, github_url = ?, demo_url = ?, tags = ?, event_id = ?,
             updated_at = datetime('now')
            WHERE id = ?`
         )
         .bind(
           data.title, data.slug, data.content, data.status,
-          data.author_name, data.author_url, data.github_url, data.demo_url, data.tags, eventId,
+          data.author_name, data.author_url, authorUserId, data.github_url, data.demo_url, data.tags, eventId,
           id
         )
         .run()
@@ -78,12 +97,13 @@ export const POST = createRoute(
       return c.redirect('/admin/posts')
     } catch (e: any) {
       const errorMessage = e?.message?.includes('UNIQUE') ? 'このスラッグはすでに使われています' : '保存に失敗しました'
-      const [mediaResult, eventsResult] = await Promise.all([
+      const [mediaResult, eventsResult, usersResult] = await Promise.all([
         fetchMedia(db, id),
         db.prepare(`SELECT id, title FROM events ORDER BY started_at DESC`).all<EventOption>(),
+        db.prepare(`SELECT id, display_name, name FROM users ORDER BY name ASC`).all<UserOption>(),
       ])
       return c.render(
-        <EditForm post={{ ...post, ...data }} mediaList={mediaResult.results} events={eventsResult.results} error={errorMessage} />,
+        <EditForm post={{ ...post, ...data }} mediaList={mediaResult.results} events={eventsResult.results} users={usersResult.results} error={errorMessage} />,
         { title: '記事を編集' }
       )
     }
@@ -95,7 +115,7 @@ export const DELETE = createRoute(async (c) => {
   const db = c.env.DB
   const post = await fetchPost(db, id)
   if (!post) return c.notFound()
-  if (!canEdit(c, post)) return c.text('この記事を削除する権限がありません', 403)
+  if (!isOwnerOrAdmin(c.var.user, post)) return c.text('この記事を削除する権限がありません', 403)
   await db.prepare(`DELETE FROM posts WHERE id = ?`).bind(id).run()
   return c.redirect('/admin/posts')
 })
@@ -104,17 +124,22 @@ export default createRoute(async (c) => {
   const id = Number(c.req.param('id'))
   const db = c.env.DB
 
-  const [post, mediaResult, eventsResult] = await Promise.all([
+  const [post, mediaResult, eventsResult, usersResult] = await Promise.all([
     fetchPost(db, id),
     fetchMedia(db, id),
     db.prepare(`SELECT id, title FROM events ORDER BY started_at DESC`).all<EventOption>(),
+    db.prepare(`SELECT id, display_name, name FROM users ORDER BY name ASC`).all<UserOption>(),
   ])
 
   if (!post) return c.notFound()
-  if (!canEdit(c, post)) return c.text('この記事を閲覧する権限がありません', 403)
+  const user = c.var.user
+  const editable = await canEditPost(db, post.author_email, user.email, user.isAdmin, id)
+  if (!editable) return c.text('この記事を閲覧する権限がありません', 403)
+
+  const collabResult = isOwnerOrAdmin(user, post) ? await fetchCollaborators(db, id) : null
 
   return c.render(
-    <EditForm post={post} mediaList={mediaResult.results} events={eventsResult.results} />,
+    <EditForm post={post} mediaList={mediaResult.results} events={eventsResult.results} users={usersResult.results} collaborators={collabResult?.results} isOwner={isOwnerOrAdmin(user, post)} />,
     { title: '記事を編集' }
   )
 })
@@ -123,11 +148,17 @@ function EditForm({
   post,
   mediaList,
   events,
+  users,
+  collaborators,
+  isOwner,
   error,
 }: {
   post: Post
   mediaList: Media[]
   events?: EventOption[]
+  users?: UserOption[]
+  collaborators?: Collaborator[]
+  isOwner?: boolean
   error?: string
 }) {
   return (
@@ -156,7 +187,7 @@ function EditForm({
       )}
 
       <form method="post" class="space-y-5">
-        <PostFormFields values={{ ...post, event_id: post.event_id != null ? String(post.event_id) : '' }} events={events} />
+        <PostFormFields values={{ ...post, event_id: post.event_id != null ? String(post.event_id) : '', author_user_id: post.author_user_id != null ? String(post.author_user_id) : '' }} events={events} users={users} />
         <StatusAndSubmit
           status={post.status}
           deleteButton={
@@ -202,62 +233,66 @@ function EditForm({
           </form>
         </div>
 
-        {/* メディア一覧 */}
-        {mediaList.length === 0 ? (
-          <div class="px-5 py-8 text-center text-gray-400 text-sm">
-            アップロードされたメディアはありません
-          </div>
-        ) : (
-          <ul class="divide-y divide-gray-100">
-            {mediaList.map((m) => (
-              <li key={m.id} class="px-5 py-3 flex items-center gap-4">
-                {/* サムネイル or アイコン */}
-                <div class="w-16 h-16 rounded overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center">
-                  {m.mime_type.startsWith('image/') ? (
-                    <img
-                      src={`/media/${m.id}`}
-                      alt={m.filename}
-                      class="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span class="text-2xl">🎬</span>
-                  )}
-                </div>
-
-                {/* ファイル情報 */}
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium truncate">{m.filename}</p>
-                  <p class="text-xs text-gray-400">{m.mime_type} · {formatSize(m.size)}</p>
-                  <p class="text-xs text-gray-300 mt-0.5 font-mono">/media/{m.id}</p>
-                </div>
-
-                {/* アクション */}
-                <div class="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    type="button"
-                    class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded"
-                    onclick={`navigator.clipboard.writeText('/media/${m.id}').then(()=>this.textContent='コピー済み！').catch(()=>{})`}
-                  >
-                    URLをコピー
-                  </button>
-                  <form
-                    method="post"
-                    action={`/admin/posts/${post.id}/media/${m.id}/delete`}
-                    onsubmit="return confirm('このメディアを削除しますか？')"
-                  >
-                    <button
-                      type="submit"
-                      class="text-xs text-red-500 hover:text-red-700 px-2 py-1"
-                    >
-                      削除
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        {/* メディア一覧（並び替え・サムネイル選択） */}
+        <MediaManager
+          postId={post.id}
+          initialMedia={mediaList.map((m) => ({ id: m.id, filename: m.filename, mime_type: m.mime_type, size: m.size }))}
+          initialThumbnailId={post.thumbnail_id}
+        />
       </section>
+
+      {/* コラボレーター管理（作成者/adminのみ表示） */}
+      {isOwner && collaborators && (
+        <section class="mt-8 bg-white rounded-lg border border-gray-200">
+          <div class="px-5 py-4 border-b border-gray-200">
+            <h2 class="font-semibold">編集権限</h2>
+            <p class="text-xs text-gray-400 mt-0.5">この記事の編集を許可するユーザーを管理できます</p>
+          </div>
+
+          {collaborators.length === 0 ? (
+            <div class="px-5 py-8 text-center text-gray-400 text-sm">
+              編集権限のリクエストはありません
+            </div>
+          ) : (
+            <ul class="divide-y divide-gray-100">
+              {collaborators.map((collab) => (
+                <li key={collab.id} class="px-5 py-3 flex items-center justify-between">
+                  <div>
+                    <span class="text-sm font-mono">{collab.user_email}</span>
+                    <CollabStatusBadge status={collab.status} />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    {collab.status === 'pending' && (
+                      <>
+                        <form method="post" action={`/admin/posts/${post.id}/collaborators/${collab.id}`}>
+                          <input type="hidden" name="action" value="approve" />
+                          <button type="submit" class="text-xs bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded">
+                            承認
+                          </button>
+                        </form>
+                        <form method="post" action={`/admin/posts/${post.id}/collaborators/${collab.id}`}>
+                          <input type="hidden" name="action" value="reject" />
+                          <button type="submit" class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded">
+                            却下
+                          </button>
+                        </form>
+                      </>
+                    )}
+                    {collab.status === 'approved' && (
+                      <form method="post" action={`/admin/posts/${post.id}/collaborators/${collab.id}`}>
+                        <input type="hidden" name="action" value="revoke" />
+                        <button type="submit" class="text-xs text-red-500 hover:text-red-700 px-2 py-1">
+                          取り消し
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <div class="mt-4 text-xs text-gray-400">
         <p>作成日: {post.created_at} · 更新日: {post.updated_at}</p>
@@ -266,8 +301,13 @@ function EditForm({
   )
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+function CollabStatusBadge({ status }: { status: string }) {
+  if (status === 'approved') {
+    return <span class="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">承認済み</span>
+  }
+  if (status === 'rejected') {
+    return <span class="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">却下</span>
+  }
+  return <span class="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">申請中</span>
 }
+

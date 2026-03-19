@@ -1,4 +1,5 @@
 import { createRoute } from 'honox/factory'
+import { canEditPost } from '../../../../../lib/post-auth'
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -17,11 +18,11 @@ export const POST = createRoute(async (c) => {
   const postId = Number(c.req.param('id'))
   if (isNaN(postId)) return c.notFound()
 
-  // 作成者チェック
+  // 編集権限チェック
   const post = await c.env.DB.prepare(`SELECT author_email FROM posts WHERE id = ?`).bind(postId).first<{ author_email: string }>()
   if (!post) return c.notFound()
   const user = c.var.user
-  if (!user.isAdmin && post.author_email !== user.email) {
+  if (!(await canEditPost(c.env.DB, post.author_email, user.email, user.isAdmin, postId))) {
     return c.text('この記事にメディアをアップロードする権限がありません', 403)
   }
 

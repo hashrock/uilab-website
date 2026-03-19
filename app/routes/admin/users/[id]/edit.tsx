@@ -80,6 +80,7 @@ function EditForm({ user, error }: { user: User; error?: string }) {
       <div class="flex items-center gap-3 mb-6">
         <a href="/admin/users" class="text-gray-400 hover:text-gray-600 text-sm">← 一覧に戻る</a>
         <h1 class="text-2xl font-bold">ユーザー編集</h1>
+        <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Admin</span>
       </div>
 
       {error && (

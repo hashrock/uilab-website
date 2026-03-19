@@ -20,6 +20,7 @@ export default createRoute(async (c) => {
     <div>
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold">ユーザー管理</h1>
+        <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Admin</span>
       </div>
 
       <div class="bg-white rounded-lg border border-gray-200">

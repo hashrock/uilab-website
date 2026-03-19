@@ -9,6 +9,8 @@ type Post = {
   tags: string;
   author_name: string;
   author_url: string;
+  author_user_id: number | null;
+  author_user_display_name: string | null;
   github_url: string;
   demo_url: string;
   created_at: string;
@@ -28,8 +30,9 @@ export default createRoute(async (c) => {
 
   const post = await db
     .prepare(
-      `SELECT p.id, p.title, p.slug, p.content, p.tags, p.author_name, p.author_url, p.github_url, p.demo_url, p.created_at,
-              p.event_id, e.title AS event_title
+      `SELECT p.id, p.title, p.slug, p.content, p.tags, p.author_name, p.author_url, p.author_user_id, p.github_url, p.demo_url, p.created_at,
+              p.event_id, e.title AS event_title,
+              (SELECT COALESCE(NULLIF(u.display_name, ''), u.name) FROM users u WHERE u.id = p.author_user_id) AS author_user_display_name
        FROM posts p
        LEFT JOIN events e ON p.event_id = e.id
        WHERE p.slug = ? AND p.status = 'published'`
@@ -40,7 +43,7 @@ export default createRoute(async (c) => {
   if (!post) return c.notFound();
 
   const media = await db
-    .prepare(`SELECT id, filename, mime_type FROM media WHERE post_id = ? ORDER BY created_at ASC`)
+    .prepare(`SELECT id, filename, mime_type FROM media WHERE post_id = ? ORDER BY sort_order ASC, created_at ASC`)
     .bind(post.id)
     .all<Media>();
 
@@ -56,9 +59,13 @@ export default createRoute(async (c) => {
           ← Back
         </a>
         <h1 class="text-3xl font-bold text-gray-900 mb-2">{post.title}</h1>
-        {post.author_name && (
+        {(post.author_user_id || post.author_name) && (
           <p class="text-sm text-gray-400 mb-4">
-            {post.author_url ? (
+            {post.author_user_id ? (
+              <a href={`/users/${post.author_user_id}`} class="hover:text-gray-700">
+                {post.author_user_display_name || post.author_name}
+              </a>
+            ) : post.author_url ? (
               <a href={post.author_url} target="_blank" rel="noopener noreferrer" class="hover:text-gray-700">
                 {post.author_name}
               </a>

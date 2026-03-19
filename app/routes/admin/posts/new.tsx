@@ -1,7 +1,7 @@
 import { createRoute } from 'honox/factory'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { PostFormFields, StatusAndSubmit, type PostFormValues, type EventOption } from './_post-form'
+import { PostFormFields, StatusAndSubmit, type PostFormValues, type EventOption, type UserOption } from './_post-form'
 
 const postSchema = z.object({
   title: z.string().min(1, 'タイトルは必須です'),
@@ -10,6 +10,7 @@ const postSchema = z.object({
   status: z.enum(['draft', 'published']).default('published'),
   author_name: z.string().default(''),
   author_url: z.string().default(''),
+  author_user_id: z.string().default(''),
   github_url: z.string().default(''),
   demo_url: z.string().default(''),
   tags: z.string().default(''),
@@ -25,15 +26,16 @@ export const POST = createRoute(
     try {
       const tempSlug = data.slug || `_tmp_${Date.now()}`
       const eventId = data.event_id ? Number(data.event_id) : null
+      const authorUserId = data.author_user_id ? Number(data.author_user_id) : null
       const authorEmail = c.var.user.email
       const result = await db
         .prepare(
-          `INSERT INTO posts (title, slug, content, status, author_name, author_url, github_url, demo_url, tags, event_id, author_email)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO posts (title, slug, content, status, author_name, author_url, author_user_id, github_url, demo_url, tags, event_id, author_email)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           data.title, tempSlug, data.content, data.status,
-          data.author_name, data.author_url, data.github_url, data.demo_url, data.tags, eventId, authorEmail
+          data.author_name, data.author_url, authorUserId, data.github_url, data.demo_url, data.tags, eventId, authorEmail
         )
         .run()
 
@@ -45,9 +47,12 @@ export const POST = createRoute(
       return c.redirect('/admin/posts')
     } catch (e: any) {
       const errorMessage = e?.message?.includes('UNIQUE') ? 'このスラッグはすでに使われています' : '保存に失敗しました'
-      const events = await db.prepare(`SELECT id, title FROM events ORDER BY started_at DESC`).all<EventOption>()
+      const [events, users] = await Promise.all([
+        db.prepare(`SELECT id, title FROM events ORDER BY started_at DESC`).all<EventOption>(),
+        db.prepare(`SELECT id, display_name, name FROM users ORDER BY name ASC`).all<UserOption>(),
+      ])
       return c.render(
-        <NewForm error={errorMessage} defaultValues={data} events={events.results} />,
+        <NewForm error={errorMessage} defaultValues={data} events={events.results} users={users.results} />,
         { title: '新規記事' }
       )
     }
@@ -57,9 +62,14 @@ export const POST = createRoute(
 export default createRoute(async (c) => {
   const user = c.var.user
   const db = c.env.DB
-  const events = await db.prepare(`SELECT id, title FROM events ORDER BY started_at DESC`).all<EventOption>()
+  // ログインユーザーのuser IDを取得
+  const currentUser = await db.prepare(`SELECT id FROM users WHERE email = ?`).bind(user.email).first<{ id: number }>()
+  const [events, users] = await Promise.all([
+    db.prepare(`SELECT id, title FROM events ORDER BY started_at DESC`).all<EventOption>(),
+    db.prepare(`SELECT id, display_name, name FROM users ORDER BY name ASC`).all<UserOption>(),
+  ])
   return c.render(
-    <NewForm defaultValues={{ author_name: user.name }} events={events.results} />,
+    <NewForm defaultValues={{ author_name: user.name, author_user_id: currentUser ? String(currentUser.id) : '' }} events={events.results} users={users.results} />,
     { title: '新規記事' }
   )
 })
@@ -68,10 +78,12 @@ function NewForm({
   error,
   defaultValues,
   events,
+  users,
 }: {
   error?: string
   defaultValues?: Partial<PostFormValues>
   events?: EventOption[]
+  users?: UserOption[]
 }) {
   return (
     <div>
@@ -87,7 +99,7 @@ function NewForm({
       )}
 
       <form method="post" class="space-y-5">
-        <PostFormFields values={defaultValues} events={events} />
+        <PostFormFields values={defaultValues} events={events} users={users} />
         <StatusAndSubmit status={defaultValues?.status} />
       </form>
     </div>

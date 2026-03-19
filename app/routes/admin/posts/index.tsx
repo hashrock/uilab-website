@@ -10,17 +10,29 @@ type Post = {
   updated_at: string
 }
 
+type AccessStatus = {
+  post_id: number
+  status: string
+}
+
 export default createRoute(async (c) => {
   const db = c.env.DB
   const user = c.var.user
-  const posts = user.isAdmin
-    ? await db
-        .prepare(`SELECT id, title, slug, status, author_email, created_at, updated_at FROM posts ORDER BY created_at DESC`)
-        .all<Post>()
+
+  // 全記事を取得（誰でも一覧は見える）
+  const posts = await db
+    .prepare(`SELECT id, title, slug, status, author_email, created_at, updated_at FROM posts ORDER BY created_at DESC`)
+    .all<Post>()
+
+  // 自分のリクエスト状況を取得
+  const myRequests = user.isAdmin
+    ? { results: [] as AccessStatus[] }
     : await db
-        .prepare(`SELECT id, title, slug, status, author_email, created_at, updated_at FROM posts WHERE author_email = ? ORDER BY created_at DESC`)
+        .prepare(`SELECT post_id, status FROM post_collaborators WHERE user_email = ?`)
         .bind(user.email)
-        .all<Post>()
+        .all<AccessStatus>()
+
+  const requestMap = new Map(myRequests.results.map((r) => [r.post_id, r.status]))
 
   return c.render(
     <div>
@@ -49,25 +61,46 @@ export default createRoute(async (c) => {
               </tr>
             </thead>
             <tbody>
-              {posts.results.map((post) => (
-                <tr key={post.id} class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                  <td class="px-5 py-3">
-                    <a href={`/admin/posts/${post.id}/edit`} class="font-medium hover:underline">
-                      {post.title}
-                    </a>
-                  </td>
-                  <td class="px-5 py-3 text-gray-400 font-mono text-xs">{post.slug}</td>
-                  <td class="px-5 py-3">
-                    <StatusBadge status={post.status} />
-                  </td>
-                  <td class="px-5 py-3 text-gray-400">{post.updated_at.slice(0, 10)}</td>
-                  <td class="px-5 py-3">
-                    <a href={`/admin/posts/${post.id}/edit`} class="text-gray-500 hover:text-gray-900">
-                      編集
-                    </a>
-                  </td>
-                </tr>
-              ))}
+              {posts.results.map((post) => {
+                const canEdit = user.isAdmin || post.author_email === user.email || requestMap.get(post.id) === 'approved'
+                const reqStatus = requestMap.get(post.id)
+
+                return (
+                  <tr key={post.id} class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                    <td class="px-5 py-3">
+                      {canEdit ? (
+                        <a href={`/admin/posts/${post.id}/edit`} class="font-medium hover:underline">
+                          {post.title}
+                        </a>
+                      ) : (
+                        <span class="font-medium text-gray-400">{post.title}</span>
+                      )}
+                    </td>
+                    <td class="px-5 py-3 text-gray-400 font-mono text-xs">{post.slug}</td>
+                    <td class="px-5 py-3">
+                      <StatusBadge status={post.status} />
+                    </td>
+                    <td class="px-5 py-3 text-gray-400">{post.updated_at.slice(0, 10)}</td>
+                    <td class="px-5 py-3">
+                      {canEdit ? (
+                        <a href={`/admin/posts/${post.id}/edit`} class="text-gray-500 hover:text-gray-900">
+                          編集
+                        </a>
+                      ) : reqStatus === 'pending' ? (
+                        <span class="text-xs text-yellow-600">申請中</span>
+                      ) : reqStatus === 'rejected' ? (
+                        <span class="text-xs text-red-500">却下済み</span>
+                      ) : (
+                        <form method="post" action={`/admin/posts/${post.id}/request-access`}>
+                          <button type="submit" class="text-xs text-blue-600 hover:text-blue-800">
+                            編集権限を申請
+                          </button>
+                        </form>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}

@@ -40,7 +40,7 @@ export default jsxRenderer(({ children, title }) => {
             <a href="/" class="text-gray-400 hover:text-white text-sm">
               ← サイトへ
             </a>
-            <div class="flex items-center gap-2">
+            <a href="/admin/profile" class="flex items-center gap-2 hover:opacity-80">
               {user.picture && (
                 <img
                   src={user.picture}
@@ -50,7 +50,7 @@ export default jsxRenderer(({ children, title }) => {
                 />
               )}
               <span class="text-gray-400 text-sm">{user.name || user.email}</span>
-            </div>
+            </a>
             <a
               href="/auth/logout"
               class="text-gray-500 hover:text-white text-xs border border-gray-700 rounded px-2 py-1"

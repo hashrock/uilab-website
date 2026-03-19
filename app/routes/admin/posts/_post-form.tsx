@@ -3,6 +3,12 @@ export type EventOption = {
   title: string
 }
 
+export type UserOption = {
+  id: number
+  display_name: string
+  name: string
+}
+
 export type PostFormValues = {
   title: string
   slug: string
@@ -10,6 +16,7 @@ export type PostFormValues = {
   status: string
   author_name: string
   author_url: string
+  author_user_id: string
   github_url: string
   demo_url: string
   tags: string
@@ -19,11 +26,14 @@ export type PostFormValues = {
 export function PostFormFields({
   values,
   events,
+  users,
 }: {
   values?: Partial<PostFormValues>
   events?: EventOption[]
+  users?: UserOption[]
 }) {
   const v = values ?? {}
+  const hasUserLink = !!v.author_user_id
 
   return (
     <>
@@ -100,25 +110,43 @@ export function PostFormFields({
       <section class="bg-white rounded-lg border border-gray-200 p-5 space-y-4">
         <h2 class="font-semibold text-sm text-gray-500 uppercase tracking-wide">作者情報</h2>
 
+        {users && users.length > 0 && (
+          <div>
+            <label class="block text-sm font-medium mb-1">ユーザーに紐づける</label>
+            <select
+              name="author_user_id"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            >
+              <option value="">紐づけない（自由入力）</option>
+              {users.map((u) => (
+                <option key={u.id} value={String(u.id)} selected={v.author_user_id === String(u.id)}>
+                  {u.display_name || u.name} (ID: {u.id})
+                </option>
+              ))}
+            </select>
+            <p class="text-xs text-gray-400 mt-1">ユーザーを選択すると、そのユーザーのプロフィールページにリンクされます</p>
+          </div>
+        )}
+
         <div>
-          <label class="block text-sm font-medium mb-1">作者名</label>
+          <label class="block text-sm font-medium mb-1">作者名{hasUserLink ? '（ユーザー紐づけ時は使われません）' : ''}</label>
           <input
             type="text"
             name="author_name"
             value={v.author_name ?? ''}
             placeholder="Your Name"
-            class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            class={`w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 ${hasUserLink ? 'opacity-50' : ''}`}
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium mb-1">作者ホームページ</label>
+          <label class="block text-sm font-medium mb-1">作者ホームページ{hasUserLink ? '（ユーザー紐づけ時は使われません）' : ''}</label>
           <input
             type="url"
             name="author_url"
             value={v.author_url ?? ''}
             placeholder="https://example.com"
-            class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            class={`w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 ${hasUserLink ? 'opacity-50' : ''}`}
           />
         </div>
       </section>

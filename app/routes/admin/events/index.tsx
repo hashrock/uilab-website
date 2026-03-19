@@ -19,6 +19,7 @@ export default createRoute(async (c) => {
     <div>
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold">イベント一覧</h1>
+        <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Admin</span>
         <a href="/admin/events/new" class="bg-gray-900 text-white px-4 py-2 rounded hover:bg-gray-700 text-sm">
           + 新規作成
         </a>
